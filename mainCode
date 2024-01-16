@@ -1,0 +1,749 @@
+import tkinter as tk
+from tkcalendar import Calendar
+from time import *
+import datetime as dt
+
+root = tk.Tk()
+root.title("Scheduale Software")
+root.geometry("1200x800")
+
+#Global Varriables
+
+passwordInput = tk.StringVar()
+usernameInput = tk.StringVar()
+recoveryAnswerInput = tk.StringVar()
+newUsernameInput = tk.StringVar()
+newPasswordInput = tk.StringVar()
+newRecoveryQuestionInput = tk.StringVar()
+newRecoveryAnswerInput = tk.StringVar()
+newNameInput = tk.StringVar()
+
+tempUsername="."
+recoveryIndex=0
+#giving them holder values
+username="0"
+password="1"
+
+#checkbox variables
+requestDayOffVar=tk.BooleanVar()
+seeCoWorkersVar=tk.BooleanVar()
+requestTimeOffVar=tk.BooleanVar()
+timeOneVar=tk.StringVar()
+timeTwoVar=tk.StringVar()
+
+
+calDate=tk.StringVar()
+dateDay=tk.StringVar() #used when slicing the string
+dateMonth=tk.StringVar() #used when slicing the string
+dateYear=tk.StringVar()#used when slicing the string
+
+
+#holds all employee names for manager window Listbox
+employeeNames=[
+
+]
+
+#holds all manager names for manager window Listbox
+managerNames=[
+]
+
+employeeInformation = {
+    }
+
+managerInformation = {
+}
+
+recoveryQuestions = {
+
+}
+
+
+days=["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+
+file=open("baseInformation.txt", "r")
+names=file.readline()
+names=names.split(",")
+names.pop()
+for i in names:
+    employeeNames.append(i)
+
+manNames=file.readline()
+manNames=manNames.split(",")
+manNames.pop()
+for i in manNames:
+    managerNames.append(i)
+
+usernames=file.readline()
+usernames=usernames.split(",")
+usernames.pop()
+for i in usernames:
+    li=i.split(":")
+    employeeInformation[li[0]]=li[1]
+
+manUsernames=file.readline()
+manUsernames=manUsernames.split(",")
+manUsernames.pop()
+for i in manUsernames:
+    li=i.split(":")
+    managerInformation[li[0]]=li[1]
+
+questions=file.readline()
+questions=questions.split(",")
+questions.pop()
+for i in questions:
+    li=i.split(":")
+    recoveryQuestions[li[0]]=li[1]
+
+#creates 2D arrays
+x=len(employeeNames)+len(managerNames)
+schedualeArrayDates=[[] for i in range(x)]
+schedualeArrayTimes=[[] for i in range(x)]
+timeOffRequestsDates=[[]for i in range(x)]
+timeOffAprovedDates=[[]for i in range(x)]
+timeOffRequestsTimes=[[]for i in range(x)]
+timeOffAprovedTimes=[[]for i in range(x)]
+
+j=0
+k=0
+while k !=12:
+    line=file.readline()
+    line=line.split(",")
+    line.pop()
+    if k%2!=1:
+        for i in line:
+            schedualeArrayDates[j].append(i)
+    else:
+        for i in line:
+            schedualeArrayTimes[j].append(i)
+        j+=1
+    k+=1
+
+j=0
+k=0
+while k != 12:
+    line=file.readline()
+    line=line.split(",")
+    line.pop()
+    if k%2!=1:
+        for i in line:
+            timeOffRequestsDates[j].append(i)
+    else:
+        for i in line:
+            timeOffRequestsTimes[j].append(i)
+        j+=1
+    k+=1
+
+j=0
+k=0
+while k != 12:
+    line=file.readline()
+    line=line.split(",")
+    line.pop()
+    if k%2!=1:
+        for i in line:
+            timeOffAprovedDates[j].append(i)
+    else:
+        for i in line:
+            timeOffAprovedTimes[j].append(i)
+        j+=1
+    k+=1
+
+file.close()
+
+def getIndex():
+    employeeIndex=0
+    for name in employeeInformation:
+        if name != username:
+            employeeIndex=employeeIndex+1
+        else:
+            return employeeIndex
+
+#comes up when a widget is used incorrectly
+def shootError(text2):
+    error=tk.Toplevel(root)
+    error.geometry("350x200")
+    errorLabel=tk.Label(error, text=text2, fg="red", font=("Ariel", 16))
+    errorLabel.pack()
+
+#selection sort to put dates and times in order
+def sortDates(dateList,timeList):
+
+    newListDates = dateList
+    newListTimes = timeList
+
+    for i in range(len(newListDates)):
+        minIndex = i
+        for j in range(i+1, len(newListDates)):
+            minDate=Calendar.datetime.strptime(newListDates[minIndex], "%m/%d/%y").date()
+            newDate=Calendar.datetime.strptime(newListDates[j], "%m/%d/%y").date()
+            if minDate > newDate:
+               minIndex = j 
+        newListDates[i], newListDates[minIndex] = newListDates[minIndex], newListDates[i]
+        newListTimes[i], newListTimes[minIndex] = newListTimes[minIndex], newListTimes[i]
+
+    return newListDates, newListTimes
+
+def checkTimeOff(date, time, dateList, timeList):
+    if date in dateList:
+        index=dateList.index(date)
+        ApprovedTime=timeList[index]
+        SchedualeBuffer=time.split('-')
+        ApprovedBuffer=ApprovedTime.split('-')
+        
+        SchedualeStart=SchedualeBuffer[0]
+        SchedualeEnd=SchedualeBuffer[1]
+        ApprovedStart=ApprovedBuffer[0]
+        ApprovedEnd=ApprovedBuffer[1]
+
+        SchedualeStart=dt.datetime.strptime(SchedualeStart, '%H:%M')
+        SchedualeEnd=dt.datetime.strptime(SchedualeEnd, '%H:%M')
+        ApprovedStart=dt.datetime.strptime(ApprovedStart, '%H:%M')
+        ApprovedEnd==dt.datetime.strptime(ApprovedEnd, '%H:%M')
+
+        if (SchedualeStart < ApprovedEnd) and (SchedualeEnd > ApprovedStart ):
+            return False
+    else:
+        return True
+
+#Main Scheduale Window
+def scheduale():
+    schedualeWindow = tk.Frame(root, height=1200, width=1600)
+
+    cal=Calendar(schedualeWindow,  text="Scheduale", font=("Ariel", 40))
+    cal.place(x=200, y=50)
+    
+    currentEmployeeIndex = getIndex()
+    i=0
+    for date in timeOffRequestsDates[currentEmployeeIndex]:
+        date=Calendar.datetime.strptime(date, "%m/%d/%y").date()
+        cal.calevent_create(date=date, text= "Requested" + timeOffRequestsDates[currentEmployeeIndex][i] + " Off", tags= "RequestedOff")
+        cal.tag_config("RequestedOff", background="purple")
+        i+=1
+    
+    i=0
+    for date in timeOffAprovedDates[currentEmployeeIndex]:
+        date=Calendar.datetime.strptime(date, "%m/%d/%y").date()
+        cal.calevent_create(date=date, text= timeOffAprovedTimes[currentEmployeeIndex][i] + " Approved Off", tags= "ApprovedOff")
+        cal.tag_config("ApprovedOff", background="green")
+        i+=1
+
+    i=0
+    for date in schedualeArrayDates[currentEmployeeIndex]:
+        date=Calendar.datetime.strptime(date, "%m/%d/%y").date()
+        cal.calevent_create(date=date, text= schedualeArrayTimes[currentEmployeeIndex][i], tags= "Scheduale")
+        cal.tag_config("Scheduale", background="blue")
+        i+=1
+
+
+    confirmButton=tk.Button(schedualeWindow, text="Confirm", command=lambda: [checkBoxCommands()])
+    confirmButton.place(x=600, y=700)
+
+    #Side bar
+    requestDayOffBox = tk.Checkbutton(schedualeWindow, text="Request Whole Day Off", 
+    variable=requestDayOffVar, onvalue= True, offvalue= False)
+    requestDayOffBox.place(x=20, y =20)
+    requestTimeOffBox = tk.Checkbutton(schedualeWindow, text="Request Partial Day Off", 
+    variable=requestTimeOffVar, onvalue=True, offvalue=False)
+    requestTimeOffBox.place(x=20, y=60)
+    seeCoworkersBox = tk.Checkbutton(schedualeWindow, text="See Coworkers",
+    variable=seeCoWorkersVar, onvalue=True, offvalue=False)
+    seeCoworkersBox.place(x=20, y=100)
+    timeOneBox=tk.Entry(schedualeWindow, width= 10, textvariable=timeOneVar, fg="gray")
+    timeOneBox.place(x=20, y=80)
+    timeOneBox.delete(0,"end")
+    timeOneBox.insert(0,"Ex: 8:00")
+    def tempText1(placeHolder):
+        timeOneBox.delete(0,"end")
+        timeOneBox.config(fg="black")
+    timeOneBox.bind("<FocusIn>", tempText1)
+    timeTwoBox=tk.Entry(schedualeWindow, width= 10, textvariable=timeTwoVar, fg="gray")
+    timeTwoBox.place(x=100, y=80)
+    timeTwoBox.delete(0,"end")    
+    timeTwoBox.insert(0,"Ex: 16:00")
+    def tempText2(placeHolder):
+        timeTwoBox.delete(0,"end")
+        timeTwoBox.config(fg="black")
+    timeTwoBox.bind("<FocusIn>", tempText2)
+    seeCoWorkersTextBox=tk.Text(schedualeWindow, height=6, width=28, background="white", font=("Ariel", 8))
+    seeCoWorkersTextBox.place(x=20, y=120)
+    goBackButton=tk.Button(schedualeWindow, text="Return", command=lambda: [schedualeWindow.destroy()])
+    goBackButton.place(x=50,y=750)
+
+    #checkbox command options
+    def checkBoxCommands():
+    
+
+        requestDayOff = requestDayOffVar.get()
+        requestTimeOff = requestTimeOffVar.get()
+        seeCoWorkers=seeCoWorkersVar.get()
+        today=dt.date.today()
+        if(requestDayOff==True and requestTimeOff==False and seeCoWorkers==False):
+            calDate_str=cal.get_date()
+            calDate = Calendar.datetime.strptime(calDate_str, "%m/%d/%y").date()
+            if(calDate<today):
+                shootError("This date is already passed")
+            else:
+                timeOffRequestsDates[currentEmployeeIndex].append(calDate_str)
+                timeOffRequestsTimes[currentEmployeeIndex].append("All Day")
+                schedualeArrayDates[currentEmployeeIndex], schedualeArrayTimes[currentEmployeeIndex] = sortDates(timeOffRequestsDates[currentEmployeeIndex], timeOffRequestsTimes[currentEmployeeIndex])
+                cal.calevent_create(date = calDate, text = "Requested All Day Off",  tags= "AllDayRequested")
+                cal.tag_config("AllDayRequested", background="purple")
+
+        elif(requestTimeOff==True and requestDayOff==False and seeCoWorkers==False):
+            calDate_str=cal.get_date()
+            calDate = Calendar.datetime.strptime(calDate_str, "%m/%d/%y").date() #converts to string
+            if(calDate<today):
+                shootError("This date is already passed")
+            else:
+                timeOne=timeOneVar.get()
+                timeTwo=timeTwoVar.get()
+                if timeOne==False or timeTwo==False:
+                    shootError("Must Enter a time.")
+                elif(dt.datetime.strptime(timeOne, '%H:%M')>dt.datetime.strptime(timeTwo, '%H:%M')):
+                        shootError("Clock-in time can not be greater than Clock-out time\nHint: Use 24 hour time")
+                else:
+                    timeOffRequestsTimes[currentEmployeeIndex].append(timeOne + "-" + timeTwo) #formats it
+                    timeOffRequestsDates[currentEmployeeIndex].append(calDate_str) #adds to the index that the username is at
+                    schedualeArrayDates[currentEmployeeIndex], schedualeArrayTimes[currentEmployeeIndex] = sortDates(timeOffRequestsDates[currentEmployeeIndex], timeOffRequestsTimes[currentEmployeeIndex])
+                    cal.calevent_create(date = calDate, text = "Requested " + timeOne + "-" + timeTwo + "Off",  tags= "PartDayOffRequest")
+                    cal.tag_config("PartDayOffRequest", background='blue')
+
+
+
+
+        elif(seeCoWorkers==True and requestDayOff==False and requestTimeOff==False):
+            final = ""
+            calDate_str=cal.get_date()
+            calDate  = Calendar.datetime.strptime(calDate_str, "%m/%d/%y").date() #converts to string
+            for i in range(len(schedualeArrayDates)):
+                text_str=""
+                counter=0
+                for date in schedualeArrayDates[i]:
+                    if(date==calDate_str):
+                        text_str = employeeNames[i] + ": " + schedualeArrayTimes[i][counter] + "\n"
+                        break
+                    counter+=1
+                if (text_str != ""):
+                    final = final + text_str
+            if final=="":
+                final="That day has not been scheduled yet"
+            try:
+                seeCoWorkersTextBox.delete("1.0","end")
+                seeCoWorkersTextBox.insert(tk.END,final)
+            except:
+                seeCoWorkersTextBox.insert(tk.END,final)
+                
+        elif(seeCoWorkers==False and requestDayOff==False and requestTimeOff==False):
+            shootError("Must select a check box")
+        
+        else:
+            shootError("More than one box is checked")
+
+    schedualeWindow.pack()
+
+def createManagerFunctionWindow():
+
+    managerFunctionWindow = tk.Frame(root, height=1200, width=1600)
+    employeeListbox=tk.Listbox(managerFunctionWindow, exportselection=False)
+    index=0
+    for i in employeeNames:
+        employeeListbox.insert(index, i)
+        index+=1
+    employeeListbox.place(x=50, y=50)
+    
+    managerCalendar=Calendar(managerFunctionWindow, text="Scheduale", font=("Ariel", 30))
+    managerCalendar.place(x=400, y=100)
+    textLabel=tk.Label(managerFunctionWindow, anchor="center")
+    textLabel.place(x=650, y=50)
+    RequestedTimeOffLabel=tk.Label(managerFunctionWindow)
+    RequestedTimeOffLabel.place(x=10, y=10)
+
+    firstTimeLabel=tk.Label(managerFunctionWindow, text="First Time")
+    secondTimeLabel=tk.Label(managerFunctionWindow, text="Second Time")
+    firstTimeEntry=tk.Entry(managerFunctionWindow, textvariable=timeOneVar, fg="gray")
+    firstTimeEntry.insert(0,"Ex: 8:00")
+    def tempText1(placeHolder):
+        firstTimeEntry.delete(0,"end")
+        firstTimeEntry.config(fg="black")
+    firstTimeEntry.bind("<FocusIn>", tempText1)
+    secondTimeEntry=tk.Entry(managerFunctionWindow, textvariable=timeTwoVar, fg="gray")
+    secondTimeEntry.insert(0,"Ex: 16:00")
+    def tempText2(placeHolder):
+        secondTimeEntry.delete(0,"end")
+        secondTimeEntry.config(fg="black")
+    secondTimeEntry.bind("<FocusIn>", tempText2)
+    firstTimeLabel.place(x=50, y=225)
+    secondTimeLabel.place(x=50, y=275)
+    firstTimeEntry.place(x=50, y=250)
+    secondTimeEntry.place(x=50, y=300)
+    addShiftButton=tk.Button(managerFunctionWindow, text="Add Shift", command=lambda: [addShift()])
+    addShiftButton.place(x=50, y=500)
+    removeShiftButton=tk.Button(managerFunctionWindow, text="Remove Shift", command=lambda: [removeShift()])
+    removeShiftButton.place(x=50, y=540)
+    newAccountButton=tk.Button(managerFunctionWindow, text="Create New Account", command = lambda: [createNewAccountWindow()])
+    newAccountButton.place(x=50, y=420)
+    seeSchedualeButton=tk.Button(managerFunctionWindow, text="See Scheduale", command=lambda: [seeScheduale()])
+    seeSchedualeButton.place(x=50, y=380)
+    seeSchedualeLabel=tk.Label(managerFunctionWindow)
+    seeSchedualeLabel.place(x=200, y=225)
+    goBackButton=tk.Button(managerFunctionWindow, text="Return", command=lambda: [managerFunctionWindow.destroy()])
+    goBackButton.place(x=50,y=750)
+    removeAccountButton=tk.Button(managerFunctionWindow, text="Remove Account", command=lambda: [removeAccount()])
+    removeAccountButton.place(x=50,y=460)
+    getSchedualeButton=tk.Button(managerFunctionWindow, text="Get Scheduale", command=lambda: [getScheduale()])
+    getSchedualeButton.place(x=50, y=340)
+    
+    for i in range(len(timeOffRequestsDates)):
+        if len(timeOffRequestsDates[i])!=0:
+            RequestedTimeOffLabel.config(text="Employee Requested Time Off", font=("Ariel", 16), foreground="blue")
+            RequestedTimeOffLabel.bind("<Button-1>", lambda x: openRequestWindow())
+
+    def addShift():
+        today=dt.datetime.today()#gets the date when opened
+
+        if len(employeeListbox.curselection()) == 0:
+            shootError("Must Select An Employee")
+        elif len(managerCalendar.get_date()) == 0:
+            shootError("Must Select A Date")
+        else:
+            calDate=managerCalendar.get_date()
+            today=today.strftime("%m/%d/%y")#turns into string
+            curselectionIndex=employeeListbox.curselection()[0]#gets the index that the employees name is at
+            
+            if calDate in schedualeArrayDates[curselectionIndex]:
+                shootError("Employee Is Already Schedualed That Day")
+            
+            elif calDate in timeOffAprovedDates:
+                shootError("Employee Has Approved Day Off")
+            
+            else: #checks to see if the day has already passed
+                
+                if calDate <= today:
+                    shootError("Date Has Passed")
+                else:
+                    firstTime=timeOneVar.get()
+                    secondTime=timeTwoVar.get()
+                    passer=0
+                    try:
+                        firstTime=dt.datetime.strptime(firstTime, '%H:%M')
+                        secondTime=dt.datetime.strptime(secondTime, '%H:%M')
+                        passer=1
+                    except:
+                        pass
+                    if passer==0:
+                        shootError("Must enter a time in a valid format.\nEx: Hour:Minute")
+                    
+                    elif(firstTime>secondTime):
+                        shootError("Clock-in time can not be greater than Clock-out time\nHint: Use 24 hour time")
+
+                    else:
+                        firstTime=dt.datetime.strftime(firstTime, '%H:%M')
+                        secondTime=dt.datetime.strftime(secondTime, '%H:%M')
+                        string=firstTime + '-' + secondTime
+                        global schedualeArrayTimes
+                        schedualeArrayTimes[curselectionIndex].append(string)
+                        schedualeArrayDates[curselectionIndex].append(calDate) #add the shift date to the scheduale
+
+                        if checkTimeOff(schedualeArrayDates[-1], schedualeArrayTimes[-1], timeOffAprovedDates[curselectionIndex], timeOffAprovedTimes[curselectionIndex])==False:
+                            schedualeArrayTimes.pop()
+                            schedualeArrayDates.pop()
+                            shootError("Employee has that time off.")
+                        else:
+                            textLabel.config(text=" ")
+                            textLabel.config(text="Shift Added", font=("Ariel", 25))
+                            managerCalendar.calevent_create(date=Calendar.datetime.strptime(schedualeArrayDates[curselectionIndex][-1], "%m/%d/%y").date(),
+                            text=schedualeArrayTimes[curselectionIndex][-1], tags="Scheduale")
+                            managerCalendar.tag_config("Scheduale", background="green")
+                            schedualeArrayDates[curselectionIndex], schedualeArrayTimes[curselectionIndex] = sortDates(schedualeArrayDates[curselectionIndex], schedualeArrayTimes[curselectionIndex])
+
+    
+    def removeShift():
+        if len(employeeListbox.curselection()) == 0:
+                shootError("Must Select An Employee")
+        elif len(managerCalendar.get_date()) == 0:
+                shootError("Must Select A Date")
+        else:
+            calDate=managerCalendar.get_date()
+            curselectionIndex=employeeListbox.curselection()[0]
+
+            if calDate not in schedualeArrayDates[curselectionIndex]:
+                shootError("Employee is not schedualed that day")
+            else:
+                dateIndex=schedualeArrayDates[curselectionIndex].index(calDate)
+                managerCalendar.calevent_remove(date=dt.datetime.strptime(schedualeArrayDates[curselectionIndex][dateIndex], "%m/%d/%y").date())
+                schedualeArrayDates[curselectionIndex].pop(dateIndex)
+                schedualeArrayTimes[curselectionIndex].pop(dateIndex)
+                textLabel.config(text=" ")
+                textLabel.config(text="Shift Removed", font=("Ariel", 25))
+
+    def seeScheduale():
+        compDate=managerCalendar.get_date()
+        final=""
+        for i in range(len(schedualeArrayDates)):
+            for date in schedualeArrayDates[i]:
+                if date==compDate:
+                    final=final + employeeNames[i] + ": " + schedualeArrayTimes[i][schedualeArrayDates[i].index(compDate)] + "\n"
+        if final=="":
+            final="No one has been schedualed \non this date"
+        seeSchedualeLabel.config(text=final)
+
+        
+        
+    def openRequestWindow():
+
+        def ReqIdx():
+            i = 0
+            trigger = 0
+            while trigger != 1 and i<len(timeOffRequestsDates):
+                if len(timeOffRequestsDates[i])!=0:
+                    trigger += 1
+                else:
+                    i+=1
+
+            if trigger==0:
+                i="destroy"
+
+            return i
+        
+
+        def reformat():
+            requestIndex=ReqIdx()
+            if requestIndex=="destroy":
+                requestedTimeFrame.destroy()
+                RequestedTimeOffLabel.config(text=" ")
+            else:
+                text_str = employeeNames[requestIndex] + ": " + timeOffRequestsDates[requestIndex][0] + "   " + timeOffRequestsTimes[requestIndex][0]
+                labelText.config(text=text_str)
+
+        
+        def ApproveTimeOff(i):
+            if len(timeOffRequestsDates[i])==0:
+                pass
+            else:
+                timeOffAprovedDates[i].append(timeOffRequestsDates[i][0])
+                timeOffAprovedTimes[i].append(timeOffRequestsTimes[i][0])
+                timeOffRequestsDates[i].pop(0)
+                timeOffRequestsTimes[i].pop(0)
+       
+        def DenyTimeOff(i):
+            if len(timeOffRequestsDates[i])==0:
+                pass
+            else:
+                timeOffRequestsDates[i].pop(0)
+                timeOffRequestsTimes[i].pop(0)
+        
+        
+        requestIndex=ReqIdx()
+
+        requestedTimeFrame=tk.Toplevel(root, height = 200, width = 400)
+        approveButton=tk.Button(requestedTimeFrame, text="Approve", command=lambda: [ApproveTimeOff(ReqIdx()), reformat()])
+        denyButton=tk.Button(requestedTimeFrame, text="Deny", command=lambda: [DenyTimeOff(ReqIdx()), reformat()])
+        text_str = employeeNames[requestIndex] + ": " + timeOffRequestsDates[requestIndex][0] + "   " + timeOffRequestsTimes[requestIndex][0]
+        labelText=tk.Label(requestedTimeFrame, text=text_str)
+        approveButton.place(x=200, y=125)
+        denyButton.place(x=300, y=125)
+        labelText.place(x=50, y= 50)
+
+
+    #invoked when they want to create a new account
+    def createNewAccountWindow():
+        newAccountWindow = tk.Toplevel(root, height=400, width=800)
+        
+        instructions=tk.Label(newAccountWindow, text="Please Enter Your New Username And Password", font=("Ariel", 16))
+        instructions.place(x=100, y=30)
+        text1=tk.Label(newAccountWindow, text = "Username")
+        newUsernameEntry = tk.Entry(newAccountWindow, textvariable=newUsernameInput)
+        text1.place(x=100, y=60)
+        newUsernameEntry.place(x=220, y=60)
+
+        text2=tk.Label(newAccountWindow, text = "Password")
+        newPasswordEntry = tk.Entry(newAccountWindow, textvariable=newPasswordInput)
+        text2.place(x=100, y=90)
+        newPasswordEntry.place(x=220, y=90)
+
+        text3=tk.Label(newAccountWindow, text="Employee Name")
+        nameEntry=tk.Entry(newAccountWindow, textvariable=newNameInput)
+        text3.place(x=100, y=120)
+        nameEntry.place(x=220, y=120)
+        
+        text4=tk.Label(newAccountWindow, text = "Recovery Question")
+        recoveryQuestionEntry=tk.Entry(newAccountWindow, textvariable=newRecoveryQuestionInput)
+        text4.place(x=100, y=150)
+        recoveryQuestionEntry.place(x=220, y=150)
+
+        text5=tk.Label(newAccountWindow, text = "Recovery Answer")
+        recoveryQuestionAnswerEntry=tk.Entry(newAccountWindow, textvariable=newRecoveryAnswerInput)
+        text5.place(x=100, y=180)
+        recoveryQuestionAnswerEntry.place(x=220, y=180)
+
+
+        submitButton=tk.Button(newAccountWindow,text = 'Submit', command = lambda: [newAccount()])
+        submitButton.place(x=350, y=110) 
+    
+        def newAccount():
+            if (newUsernameInput.get()!=None and newPasswordInput.get()!=None and newRecoveryQuestionInput.get()!=None and newRecoveryAnswerInput.get()!=None and newUsernameInput.get()!=None):
+                trigger=0
+                newName = newNameInput.get()
+                for name in employeeNames:
+                    if newName==name:
+                        shootError("Employee already exists")
+                        trigger=1
+                        break
+                    elif trigger==0:
+                        newUsername = newUsernameInput.get()
+                        for users in employeeInformation:
+                            if users==newUsername:
+                                shootError("Username Already Exists")
+                                trigger=1
+                                break
+                            else:
+
+                                newPassword = newPasswordInput.get()
+                                newRecoveryQuestion = newRecoveryQuestionInput.get()
+                                newRecoveryAnswer = newRecoveryAnswerInput.get()
+                                employeeNames.append(newName)
+                                employeeInformation[newUsername] = newPassword
+                                recoveryQuestions[newRecoveryQuestion] = newRecoveryAnswer
+                                newAccountWindow.destroy()    
+            else:
+                shootError("Not all of the entries are filled")
+   
+    def getScheduale():
+        if len(employeeListbox.curselection())==0:
+            shootError("Must select an employee")
+        else:
+            index=employeeListbox.curselection()[0]
+            for i in managerCalendar.get_calevents(tag="Scheduale"):
+                managerCalendar.calevent_remove(i)
+
+            for i in range(len(schedualeArrayDates[index])):
+                managerCalendar.calevent_create(date=Calendar.datetime.strptime(schedualeArrayDates[index][i], "%m/%d/%y").date(),
+                text=schedualeArrayTimes[index][i], tags="Scheduale")
+                managerCalendar.tag_config("Scheduale", background="green")
+                
+
+    def removeAccount():
+        if len(employeeListbox.curselection())==0:
+            shootError("Must select an employee")
+        else:
+            confirmation=tk.Toplevel(managerFunctionWindow) 
+            confirmation.geometry("300x300")
+            confirmationText=tk.Label(confirmation, text="Are you sure you want to delete this account?\n Information will not be able to be recovered afterward.")
+            confirmationText.place(x=50, y=50)
+            acceptButton=tk.Button(confirmation, text="Accept", command=lambda: [Accept()])
+            acceptButton.place(x=200, y=125)
+            denyButton=tk.Button(confirmation, text="Deny", command=lambda: [confirmation.destroy()])
+            denyButton.place(x=200, y=175)
+        
+        def Accept():
+            index=employeeListbox.curselection()[0]
+            employeeNames.pop(index)
+            employeeInformation.pop(list(employeeInformation)[index])
+            recoveryQuestions.pop(list(recoveryQuestions)[index])
+            schedualeArrayDates.pop(index)
+            schedualeArrayTimes.pop(index)
+            timeOffAprovedDates.pop(index)
+            timeOffAprovedTimes.pop(index)
+            timeOffRequestsDates.pop(index)
+            timeOffRequestsTimes.pop(index)
+            confirmation.destroy()   
+
+    managerFunctionWindow.pack()
+
+
+def forgotPassword():
+    forgotPasswordFrame=tk.Frame(root, height=800, width=800) 
+    usernameLabel=tk.Label(forgotPasswordFrame, text="Please Enter Username")
+    usernameEntry=tk.Entry(forgotPasswordFrame, textvariable=usernameInput)
+    question=tk.Label(forgotPasswordFrame)
+    answerEntry=tk.Entry(forgotPasswordFrame,textvariable=recoveryAnswerInput)
+    results=tk.Label(forgotPasswordFrame)
+
+
+    def getQuestion():
+        global tempUsername
+        global recoveryIndex
+        username=usernameInput.get()
+        if tempUsername!=username:
+            username=usernameInput.get()
+            tempUsername = username
+            recoveryIndex=0
+            for name in employeeInformation:
+                if name==username:
+                    break
+                else:
+                    recoveryIndex+=1
+            
+            if recoveryIndex>=len(employeeInformation):
+                shootError("Username Doesnt Exist")
+            else:
+                question.config(text=list(recoveryQuestions)[recoveryIndex])
+                question.place(x=10, y=130)
+                answerEntry.place(x=10,y=170)
+
+        else:
+            answer=recoveryAnswerInput.get()
+            if list(recoveryQuestions.values())[recoveryIndex]==answer:
+                results.config(text="Your passord is " + employeeInformation[username], foreground="red")
+            else:
+                results.config(text="Answer was incorrect", foreground="red")
+
+
+    sendButton=tk.Button(forgotPasswordFrame, text="Submit", command=lambda:[getQuestion()])
+    usernameLabel.place(x=10, y=50)
+    usernameEntry.place(x=10, y=90)
+    sendButton.place(x=200, y=70)
+    results.place(x=10,y=200)
+
+    forgotPasswordFrame.pack()
+
+#Startup Window
+def mainWindow():
+
+    titleText=tk.Label(root, text = "Scheduale Log In", font = ("Ariel", 20))
+    titleText.place(x=500, y=250)
+    text1=tk.Label(root, text = "Username")
+    usernameEntry = tk.Entry(root, textvariable=usernameInput)
+    text1.place(x=500, y=300)
+    usernameEntry.place(x=570, y=300)
+
+    text2=tk.Label(root, text = "Password")
+    passwordEntry = tk.Entry(root, textvariable=passwordInput)
+    text2.place(x=500, y=330)
+    passwordEntry.place(x=570, y=330)
+    incorrectPopUp=tk.Label(root)
+    incorrectPopUp.place(x=500, y=390)
+
+    submitButton=tk.Button(root,text = 'Submit', command = lambda: [login()])
+    submitButton.place(x=700, y=310)
+
+    forgotPasswordButton=tk.Button(root,text="Forgot Password", command = lambda: [forgotPassword()])
+    forgotPasswordButton.place(x = 500, y = 360)
+    
+    #Code behind checking the password and usernames
+    def login():
+
+        password = passwordInput.get()
+        global username
+        username = usernameInput.get()
+
+        for i in employeeInformation:
+            if i == username:
+                if employeeInformation[i] == password:
+                    scheduale()
+                else:
+                    incorrectPopUp.config(text="Incorrect Username or Password", fg="red")
+
+        for j in managerInformation:
+            if j == username:
+                if managerInformation[j] == password:
+                    createManagerFunctionWindow()
+                else:
+                    incorrectPopUp.config(text="Incorrect Username or Password", fg="red")
+
+    root.mainloop()
+
+def main():
+    mainWindow()
+
+main() 
